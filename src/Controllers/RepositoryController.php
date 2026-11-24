@@ -75,7 +75,7 @@ final class RepositoryController extends Controller
         $this->audit('repository.create', $repo->name, ['type' => $r->input('repotype'), 'structure' => $r->input('repostructuretype')]);
         $this->success('The repository %0 has been created successfully', [$repo->name]);
 
-        if ($r->input('accesspathcreate') === '1' && $this->services->hasAccessPathEdit() && $this->auth->can(Acl::MOD_ACCESSPATH, Acl::ADD)) {
+        if ($r->input('accesspathcreate') === '1' && $this->canCreateAccessPath($repo->name . ':/')) {
             try {
                 $this->services->authz()->update(static fn (AuthzFile $a): AuthzFile => $a->hasAccessPath($repo->name . ':/') ? $a : $a->withAccessPath($repo->name . ':/'));
                 $this->audit('accesspath.create', $repo->name . ':/');
@@ -101,15 +101,18 @@ final class RepositoryController extends Controller
             return $this->back('/repositories');
         }
         $parentId = (int) $this->request->input('pi', '0');
-        $removePaths = $this->request->input('delete_ap') === '1' && $this->services->hasAccessPathEdit();
+        $removePaths = $this->request->input('delete_ap') === '1' && $this->canDeleteAccessPaths();
         $service = $this->service();
         $this->each($names, function (string $name) use ($service, $parentId, $removePaths): void {
-            $repo = $service->find($parentId, $name);
+            $repo = $this->find((string) $parentId, $name);
             $service->delete($repo);
             $this->audit('repository.delete', $repo->name);
             $this->success('The repository %0 has been deleted.', [$repo->name]);
             if ($removePaths) {
-                $paths = $this->services->authz()->load()->accessPathsOfRepository($repo->name);
+                $paths = array_values(array_filter(
+                    $this->services->authz()->load()->accessPathsOfRepository($repo->name),
+                    fn (string $p): bool => $this->auth->canManagePath($p),
+                ));
                 $this->services->authz()->update(static function (AuthzFile $a) use ($paths): AuthzFile {
                     foreach ($paths as $p) {
                         $a = $a->withoutAccessPath($p);
@@ -316,6 +319,20 @@ final class RepositoryController extends Controller
         }
 
         return $repo;
+    }
+
+    /** Creating a repository's root access path needs the same rights as creating it by hand. */
+    private function canCreateAccessPath(string $path): bool
+    {
+        return $this->services->hasAccessPathEdit()
+            && $this->auth->can(Acl::MOD_ACCESSPATH, Acl::ADD)
+            && $this->auth->canManagePath($path);
+    }
+
+    /** "Also remove access paths" needs the right to delete access paths. */
+    private function canDeleteAccessPaths(): bool
+    {
+        return $this->services->hasAccessPathEdit() && $this->auth->can(Acl::MOD_ACCESSPATH, Acl::DELETE);
     }
 
     /** File contents are exported data: same right as downloading a dump. */

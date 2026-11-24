@@ -261,7 +261,7 @@ final class GroupController extends Controller
                 static fn (string $n): bool => $n !== '*',
             ));
         } catch (\Throwable $e) {
-            $this->info($e->getMessage());
+            $this->info($this->errorText($e));
 
             return [];
         }

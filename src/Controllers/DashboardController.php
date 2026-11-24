@@ -23,7 +23,7 @@ final class DashboardController extends Controller
                 $stats[$key] = $fn();
             } catch (\Throwable $e) {
                 $stats[$key] = null;
-                $problems[] = $e->getMessage();
+                $problems[] = $this->errorText($e);
             }
         };
 

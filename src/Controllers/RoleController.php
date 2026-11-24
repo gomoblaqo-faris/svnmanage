@@ -29,7 +29,7 @@ final class RoleController extends Controller
         try {
             $users = array_map(static fn (User $u): string => $u->name, $this->services->users()?->users() ?? []);
         } catch (\Throwable $e) {
-            $this->info($e->getMessage());
+            $this->info($this->errorText($e));
         }
         $canAssign = $this->auth->can(Acl::MOD_ROLE, Acl::ASSIGN);
 

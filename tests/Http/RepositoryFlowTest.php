@@ -52,6 +52,60 @@ final class RepositoryFlowTest extends HttpTestCase
         return (string) ob_get_clean();
     }
 
+    private function userWithRoles(string $name, array $roles): void
+    {
+        $this->post('/users', ['username' => $name, 'password' => 'Manager123', 'password2' => 'Manager123', 'roles' => $roles]);
+        $this->flashes();
+    }
+
+    private function signInAs(string $name): void
+    {
+        $this->logout();
+        self::assertSame(303, $this->login($name, 'Manager123')->status);
+        $this->flashes();
+    }
+
+    public function testScopedRepositoryManagerCannotDeleteRepositoriesOutsideTheirPaths(): void
+    {
+        $alpha = $this->createRepo('alpha');
+        $beta = $this->createRepo('beta');
+        $this->userWithRoles('pm', ['User', 'Repository-Manager']);
+        $this->post('/access-paths/managers', ['selected_paths' => ['alpha:/'], 'users' => ['pm']]);
+        $this->signInAs('pm');
+
+        $this->post('/repositories/delete', ['pi' => '0', 'selected_repos' => ['beta'], 'delete_ap' => '1']);
+        self::assertDirectoryExists($beta, 'a repository outside the managed paths survives');
+        self::assertStringContainsString('[beta:/]', $this->file('svn/authz'));
+
+        $this->post('/repositories/delete', ['pi' => '0', 'selected_repos' => ['alpha'], 'delete_ap' => '1']);
+        self::assertDirectoryDoesNotExist($alpha, 'a repository inside the managed paths can be deleted');
+        self::assertStringNotContainsString('[alpha:/]', $this->file('svn/authz'));
+    }
+
+    public function testDeletingARepositoryKeepsAccessPathsWithoutTheRightToDeleteThem(): void
+    {
+        $path = $this->createRepo('gamma');
+        $this->userWithRoles('rm', ['User', 'Repository-Manager']);
+        $this->signInAs('rm');
+
+        $this->post('/repositories/delete', ['pi' => '0', 'selected_repos' => ['gamma'], 'delete_ap' => '1']);
+
+        self::assertDirectoryDoesNotExist($path);
+        self::assertStringContainsString('[gamma:/]', $this->file('svn/authz'), 'access paths need the access-path delete right');
+    }
+
+    public function testScopedCreatorCannotCreateAccessPathsOutsideTheirPaths(): void
+    {
+        $this->createRepo('alpha');
+        $this->userWithRoles('pm', ['User', 'Repository-Creator']);
+        $this->post('/access-paths/managers', ['selected_paths' => ['alpha:/'], 'users' => ['pm']]);
+        $this->signInAs('pm');
+
+        $this->post('/repositories', ['reponame' => 'delta', 'pi' => '0', 'repotype' => 'fsfs', 'repostructuretype' => 'none', 'accesspathcreate' => '1']);
+
+        self::assertStringNotContainsString('[delta:/]', $this->file('svn/authz'));
+    }
+
     public function testCreateShowBrowseReadDumpAndDelete(): void
     {
         self::assertSame(200, $this->get('/repositories/new')->status);

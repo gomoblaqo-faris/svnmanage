@@ -432,7 +432,7 @@ final class UserController extends Controller
         try {
             return $this->services->authz()->load();
         } catch (\Throwable $e) {
-            $this->info($e->getMessage());
+            $this->info($this->errorText($e));
 
             return null;
         }
