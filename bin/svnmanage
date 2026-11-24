@@ -1,0 +1,12 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+if (PHP_SAPI !== 'cli') {
+    exit(1);
+}
+require dirname(__DIR__) . '/src/autoload.php';
+
+$app = new SvnManage\App(dirname(__DIR__));
+exit((new SvnManage\Cli\Console($app))->run(array_slice($argv, 1)));

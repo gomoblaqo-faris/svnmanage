@@ -1,0 +1,23 @@
+/vendor/
+/node_modules/
+/.phpunit.cache/
+/data/*
+!/data/.htaccess
+!/data/.gitkeep
+.DS_Store
+
+# AI / coding-agent files stay local
+/CLAUDE.md
+/CLAUDE.local.md
+/AGENTS.md
+/GEMINI.md
+/.claude/
+/.cursor/
+/.cursorrules
+/.codex/
+/.gemini/
+/.windsurf/
+/.aider*
+/.mcp.json
+/.github/copilot-instructions.md
+/notes/

@@ -1,0 +1,35 @@
+# svnmanage - Apache front controller rules (document root = public/)
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+<IfModule !mod_rewrite.c>
+    FallbackResource index.php
+</IfModule>
+
+# Only index.php and the built assets are ever served from here.
+<FilesMatch "^\.|\.(ini|log|json|md|lock|bak|dist|sh)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    # Static files bypass PHP, so they get the same protective headers here.
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set Cross-Origin-Resource-Policy "same-origin"
+    Header always unset X-Powered-By
+    <FilesMatch "\.svg$">
+        Header set Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'"
+    </FilesMatch>
+    <FilesMatch "\.(css|js|svg)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript image/svg+xml application/json
+</IfModule>
